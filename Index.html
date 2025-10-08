@@ -1,0 +1,98 @@
+<!DOCTYPE html> 
+<html lang="en"> 
+<head> 
+<meta charset="utf-8"/> 
+<meta name="viewport" content="width=device-width,initial-scale=1"/> 
+<title>Voice Controlled Login</title> 
+<link rel="stylesheet" href="style.css"> 
+</head> 
+<body> 
+<div class="login-container"> 
+<h2>Voice Controlled Login</h2> 
+<input type="text" id="username" placeholder="Username" autocomplete="off" /> 
+<div class="password-container"> 
+<input type="password" id="password" placeholder="Password" autocomplete="new-password" /> 
+<span id="togglePassword" class="eye">&#128065;</span> 
+</div> 
+<p id="error-message" class="error-text"></p> 
+<div class="buttons"> 
+<button id="cancelBtn">Cancel</button> 
+<button id="okBtn">OK</button> 
+</div> 
+<div class="instructions"> 
+<p>Say "username John" or "password 1234"</p> 
+<p>Say "OK" to submit or "Cancel" to clear</p> 
+</div> 
+</div> 
+<div id="mic" class="mic"></div> 
+<script> 
+const username = document.getElementById('username'); 
+const password = document.getElementById('password'); 
+const okBtn = document.getElementById('okBtn'); 
+const cancelBtn = document.getElementById('cancelBtn'); 
+const errorMsg = document.getElementById('error-message'); 
+const togglePassword = document.getElementById('togglePassword'); 
+togglePassword.onclick = () => { 
+password.type = password.type === 'password' ? 'text' : 'password'; 
+}; 
+cancelBtn.onclick = () => { 
+username.value = ''; 
+password.value = ''; 
+errorMsg.textContent = ''; 
+}; 
+// Save and validate users 
+okBtn.onclick = () => { 
+const u = username.value.trim(); 
+const p = password.value.trim(); 
+if (!u || !p) { 
+errorMsg.textContent = 'Please enter username and password.'; 
+return; 
+} 
+let users = JSON.parse(localStorage.getItem('users')) || {}; 
+if (users[u]) { 
+if (users[u] === p) { 
+errorMsg.textContent = ''; 
+// Move to emotion page 
+window.location.href = 'face.html'; 
+} else { 
+errorMsg.textContent = 'Wrong password'; 
+} 
+} else { 
+// Register new user 
+users[u] = p; 
+localStorage.setItem('users', JSON.stringify(users)); 
+alert('New user registered successfully!'); 
+window.location.href = 'face.html'; 
+} 
+}; 
+// Voice Recognition 
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition; 
+if (SpeechRecognition) { 
+const recognition = new SpeechRecognition(); 
+recognition.continuous = true; 
+recognition.interimResults = false; 
+recognition.lang = 'en-US'; 
+recognition.onresult = (e) => { 
+const transcript = e.results[e.results.length - 1][0].transcript.trim().toLowerCase(); 
+processCommand(transcript); 
+}; 
+recognition.start(); 
+function processCommand(cmd) { 
+if (cmd.startsWith('username')) { 
+username.focus(); 
+username.value = cmd.replace('username', '').trim(); 
+} else if (cmd.startsWith('password')) { 
+password.focus(); 
+password.value = cmd.replace('password', '').trim(); 
+} else if (cmd.includes('ok')) { 
+okBtn.click(); 
+} else if (cmd.includes('cancel')) { 
+cancelBtn.click(); 
+} 
+} 
+} else { 
+alert('Speech Recognition not supported in this browser.'); 
+} 
+</script> 
+</body> 
+</html> 
