@@ -1,0 +1,117 @@
+(function VoiceControl() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) return alert('Speech Recognition not supported in this browser.');
+
+  const recognition = new SpeechRecognition();
+  recognition.continuous = true;
+  recognition.interimResults = false;
+  recognition.lang = 'en-US';
+
+  let isListening = false, micIndicator = null;
+
+  function setupMic() {
+    if (document.getElementById('mic-indicator')) return;
+    micIndicator = document.createElement('div');
+    micIndicator.id = 'mic-indicator';
+    micIndicator.style.cssText = `
+      position: fixed; bottom: 20px; right: 20px; width: 55px; height: 55px;
+      background: #2d1820; border-radius: 50%; display: flex; align-items: center;
+      justify-content: center; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      color: white; font-size: 24px; z-index: 10000; transition: background 0.3s;
+    `;
+    micIndicator.textContent = '🎤';
+    document.body.appendChild(micIndicator);
+    micIndicator.onclick = toggleRecognition;
+  }
+
+  function setMicStatus(active) {
+    isListening = active;
+    micIndicator.style.background = active ? '#4CAF50' : '#2d1820';
+  }
+
+  function findElementByText(text) {
+    text = text.toLowerCase().trim();
+    const elements = document.querySelectorAll('a, button, input[type="button"], input[type="submit"], [role="button"]');
+    return Array.from(elements).find(el =>
+      (el.textContent && el.textContent.toLowerCase().includes(text)) ||
+      (el.value && el.value.toLowerCase().includes(text))
+    );
+  }
+
+  function findInputField(name) {
+    name = name.toLowerCase().trim();
+    return document.querySelector(
+      `input[id*="${name}" i], input[name*="${name}" i], input[placeholder*="${name}" i],
+       textarea[id*="${name}" i], textarea[name*="${name}" i]`
+    );
+  }
+
+  function typeInto(el, value) {
+    el.value = value;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  function findSubmit() {
+    return document.querySelector('button[type="submit"], input[type="submit"]') || findElementByText('submit');
+  }
+
+  function process(cmd) {
+    cmd = cmd.toLowerCase();
+
+    if (cmd.includes('scroll down')) return window.scrollBy({ top: 500, behavior: 'smooth' });
+    if (cmd.includes('scroll up')) return window.scrollBy({ top: -500, behavior: 'smooth' });
+    if (cmd.includes('go to top')) return window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (cmd.includes('go to bottom')) return window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    if (cmd.includes('go back')) return history.back();
+
+    const searchMatch = cmd.match(/search for (.+)/);
+    if (searchMatch) {
+      const val = searchMatch[1];
+      const input = findInputField('search');
+      if (input) typeInto(input, val);
+      return;
+    }
+
+    const typeMatch = cmd.match(/type (.+) into (.+)/);
+    if (typeMatch) {
+      const val = typeMatch[1], field = typeMatch[2];
+      const input = findInputField(field);
+      if (input) typeInto(input, val);
+      return;
+    }
+
+    const clickMatch = cmd.match(/click (.+)/);
+    if (clickMatch) {
+      const el = findElementByText(clickMatch[1]);
+      if (el) el.click();
+      return;
+    }
+
+    if (cmd.includes('submit') || cmd.includes('enter')) {
+      const submit = findSubmit();
+      if (submit) submit.click();
+    }
+  }
+
+  recognition.onstart = () => setMicStatus(true);
+  recognition.onresult = e => {
+    const transcript = Array.from(e.results).map(r => r[0].transcript).join('');
+    process(transcript);
+  };
+  recognition.onerror = () => setMicStatus(false);
+  recognition.onend = () => { if (isListening) recognition.start(); };
+
+  function toggleRecognition() {
+    if (isListening) {
+      recognition.stop();
+      setMicStatus(false);
+    } else {
+      recognition.start();
+      setMicStatus(true);
+    }
+  }
+
+  setupMic();
+  toggleRecognition();
+  console.log('%c🎤 Voice Control Active. Say a command!', 'color:#4CAF50;font-weight:bold;');
+})();
